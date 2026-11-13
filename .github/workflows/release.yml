@@ -1,0 +1,40 @@
+name: release
+
+# Pushing a tag (v*) builds release binaries on real Linux and Windows runners
+# and publishes a GitHub Release with both attached.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: syncx-linux-x86_64
+            package: |
+              tar -czf dist/syncx-linux-x86_64.tar.gz -C target/release syncx
+          - os: windows-latest
+            name: syncx-windows-x86_64
+            package: |
+              New-Item -ItemType Directory -Force dist | Out-Null
+              Compress-Archive -Path target/release/syncx.exe -DestinationPath dist/syncx-windows-x86_64.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build (release)
+        run: cargo build --release
+      - name: Package
+        run: |
+          ${{ matrix.package }}
+      - name: Publish to the GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
