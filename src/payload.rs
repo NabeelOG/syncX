@@ -114,7 +114,7 @@ const SCRIPT: &str = r#"# sYncX - Bluetooth pairing import for Windows
 #
 # Nothing is installed, and no pairing happens - this only copies keys.
 
-param([switch]$AsSystem)
+param([switch]$AsSystem, [switch]$Elevated)
 
 $ErrorActionPreference = 'Stop'
 
@@ -183,8 +183,9 @@ if ($AsSystem) {
 }
 
 if (!(Test-Admin)) {
+    Write-Host 'Requesting Administrator approval (UAC prompt should appear)...'
     try {
-        Start-Process powershell.exe -Verb RunAs -WindowStyle Hidden -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', "`"$PSCommandPath`"") -Wait
+        Start-Process powershell.exe -Verb RunAs -WindowStyle Hidden -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', "`"$PSCommandPath`"", '-Elevated') -Wait
     } catch {
         '{"ok":false,"error":"the UAC prompt was declined or failed"}'
         Read-Host 'Press Enter to close'
@@ -192,10 +193,11 @@ if (!(Test-Admin)) {
     }
     if (Test-Path $ResultPath) {
         Get-Content $ResultPath -Raw
-        Remove-Item $ResultPath -Force
+        Remove-Item $ResultPath -Force -ErrorAction SilentlyContinue
     } else {
-        '{"ok":false,"error":"no result - UAC was cancelled or the elevated step failed"}'
+        '{"ok":false,"error":"no result - the elevated step failed"}'
     }
+    Read-Host 'Done. Press Enter to close'
     exit 0
 }
 
@@ -216,13 +218,14 @@ try {
 
 if (Test-Path $ResultPath) {
     Get-Content $ResultPath -Raw
-    Remove-Item $ResultPath -Force
 } else {
     '{"ok":false,"error":"the SYSTEM task produced no result"}'
 }
 
-Write-Host ''
-Read-Host 'Done. Press Enter to close'
+if (-not $Elevated) {
+    Write-Host ''
+    Read-Host 'Done. Press Enter to close'
+}
 "#;
 
 /// The one-click wrapper: double-click this on Windows and the script runs with
@@ -294,6 +297,11 @@ mod tests {
         // SYSTEM elevation via scheduled task, admin elevation via RunAs
         assert!(script.contains("ScheduledTaskPrincipal -UserId 'SYSTEM'"));
         assert!(script.contains("-Verb RunAs"));
+        // the hidden elevated copy passes -Elevated and never pauses (deadlock guard)
+        assert!(script.contains("'-Elevated'"));
+        assert!(script.contains("if (-not $Elevated)"));
+        // the visible non-admin copy reads the result before deleting it
+        assert!(script.contains("Remove-Item $ResultPath -Force -ErrorAction SilentlyContinue"));
         // binary values, one per device MAC without colons (name comes from JSON at runtime)
         assert!(script.contains("PropertyType Binary"));
         // service restart attempt with a reboot fallback
