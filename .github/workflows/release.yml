@@ -18,6 +18,7 @@ jobs:
           - os: ubuntu-latest
             name: syncx-linux-x86_64
             package: |
+              mkdir -p dist
               tar -czf dist/syncx-linux-x86_64.tar.gz -C target/release syncx
           - os: windows-latest
             name: syncx-windows-x86_64
