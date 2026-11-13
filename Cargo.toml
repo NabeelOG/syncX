@@ -1,0 +1,19 @@
+[package]
+name = "syncx"
+version = "0.1.0"
+edition = "2024"
+description = "Bluetooth pairing sync for dual-boot Linux + Windows"
+license = "MIT"
+
+[dependencies]
+rune = { git = "https://github.com/anomalyco/rune", rev = "8627f32d41f34b7f59854979d01496a6a45b6290" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Rune's workspace patches crates-io with vendored fixes (Windows shell work, text shaping).
+# A dependency's [patch] doesn't apply to this workspace, so patch them here too.
+[patch.crates-io]
+wgpu-hal = { git = "https://github.com/anomalyco/rune", rev = "8627f32d41f34b7f59854979d01496a6a45b6290" }
+winit = { git = "https://github.com/anomalyco/rune", rev = "8627f32d41f34b7f59854979d01496a6a45b6290" }
+parley_engine = { git = "https://github.com/anomalyco/rune", rev = "8627f32d41f34b7f59854979d01496a6a45b6290" }
+accesskit_windows = { git = "https://github.com/anomalyco/rune", rev = "8627f32d41f34b7f59854979d01496a6a45b6290" }
